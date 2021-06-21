@@ -36,6 +36,5 @@ python data/prepare_data.py
 Moove city_A and city_B folder in the data folder:
 
 ```bash
-mv -r city_A data/city_A
-mv -r city_B data/city_B
+mv city_A city_B data/
 ```
