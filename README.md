@@ -1,18 +1,21 @@
 # Huawei RAMP 2021 GOLDITE PESCE RHIM
 Repository for the Huawei RAMP 2021 competition (OAN failure challenge).
 Authors: Valentin GOLDITE Florian PESCE Ayoub RHIM
-## install dependencies
+## Install dependencies
 Run this line in the repository folder:
 ```
 $ pip install -r requirements.txt
 ```
 Main package installed are:
-- tensorflow-cpu (2.15)
+- [ramp-workflow ](https://github.com/ramp-kits/oan_failure) project
+- [oan_failure](https://github.com/ramp-kits/oan_failure/blob/master/requirements.txt) project
+- pytorch-cpu (1.9)
 - lightgbm
 - pandas
 - scikit-learn
+- matplotlib
 
-## download and prepare data
+## Download and prepare data
 First download the file **public_data.tar.bz2** from the slack channel *#oan_failure_challenge*
 
 Unzip content in **Huawei2021** folder.
