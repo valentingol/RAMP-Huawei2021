@@ -8,7 +8,7 @@ $ pip install -r requirements.txt
 ```
 Main package installed are:
 - [ramp-workflow ](https://github.com/ramp-kits/oan_failure) project
-- [oan_failure](https://github.com/ramp-kits/oan_failure/blob/master/requirements.txt) project
+- [oan_failure](https://github.com/ramp-kits/oan_failure) project
 - pytorch-cpu (1.9)
 - lightgbm
 - pandas
