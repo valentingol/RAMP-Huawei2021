@@ -13,6 +13,7 @@ ramp-workflow @ git+https://github.com/paris-saclay-cds/ramp-workflow.git@212720
 six==1.16.0
 scikit-learn>=0.22
 scipy>=1.5.4
+tensorflow-cpu>=2.5
 threadpoolctl==2.1.0
 torch>=1.9.0+cpu
 torchaudio==0.9.0
