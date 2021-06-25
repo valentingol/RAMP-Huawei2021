@@ -6,8 +6,9 @@ import tensorflow as tf
 
 from train_utils.batch import MakeBatch
 from train_utils.loss import UnbalancedMSE_nn, UnbalancedMSE_gb
-from train_utils.metric import accuracy, area_ROC, av_precision, prec_recall
 from predict_utils.neuralnet import nn_prediction
+from external_imports.utils.score_types import PrecisionAtRecall
+from sklearn.metrics import accuracy_score, roc_auc_score, average_precision_score
 
 class Classifier:
     def __init__(self):
@@ -38,8 +39,9 @@ class Classifier:
                                           objective = self.loss_gb)
         # nn logs
         self.logs = {'train_err':[], 'train_acc':[], 'train_auc':[],
-                     'train_ap':[], 'train_pr':[], 'val_err':[], 'val_acc':[],
-                     'val_auc':[], 'val_ap':[], 'val_pr':[]}
+                     'train_ap':[], 'train_rec5':[], 'train_rec10':[], 'train_rec20':[],
+                    'val_err':[], 'val_acc':[],'val_auc':[],
+                    'val_ap':[], 'val_rec5':[], 'val_rec10':[], 'val_rec20':[]}
 
     def fit(self, X_source, X_source_bkg, X_target, X_target_unlabeled,
             X_target_bkg, y_source, y_target):
@@ -62,19 +64,26 @@ class Classifier:
                 grads = tape.gradient(err_tensor, self.nn.trainable_weights)
                 self.nn_opt.apply_gradients(zip(grads, self.nn.trainable_weights))
                 err = float(err_tensor)
-                acc = accuracy(y, y_pred)
-                auc = area_ROC(y, y_pred)
-                ap = av_precision(y, y_pred)
-                pr = prec_recall(y, y_pred)
+
+                acc = accuracy_score(y, y_pred)
+                auc = roc_auc_score(y, y_pred)
+                ap = average_precision_score(y, y_pred)
+                rec5 = PrecisionAtRecall(recall = 0.05)(y, y_pred)
+                rec10 = PrecisionAtRecall(recall = 0.1)(y, y_pred)
+                rec20 = PrecisionAtRecall(recall = 0.2)(y, y_pred)
+
                 if verbose:
                     print(f" batch {i+1}, err {err: .3f}, acc {acc: .3f}, "
-                        f"auc {auc: .3f}, ap {ap: .3f}, pr {pr: .3f}        ",
+                        f"auc {auc: .3f}, ap {ap: .3f}, pr {pr: .3f}, "
+                        f"rec5 {rec5: .3f}, rec10 {rec10: .3f}, rec20 {rec20: .3f}        ",
                         end='\r')
                 self.logs['train_err'].append(err)
                 self.logs['train_acc'].append(acc)
                 self.logs['train_auc'].append(auc)
                 self.logs['train_ap'].append(ap)
-                self.logs['train_pr'].append(pr)
+                self.logs['train_rec5'].append(rec5)
+                self.logs['train_rec10'].append(rec10)
+                self.logs['train_rec20'].append(rec20)
             if verbose: print()
             # validation loop
             err, acc, auc, ap, pr = 0, 0, 0, 0, 0
@@ -82,19 +91,24 @@ class Classifier:
             for X, y in val_batches:
                 y_pred = self.nn(X, training=False)
                 err += float(self.loss_nn(y, y_pred))
-                acc = accuracy(y, y_pred)
-                auc = area_ROC(y, y_pred)
-                ap = av_precision(y, y_pred)
-                pr = prec_recall(y, y_pred)
-            err, acc, auc, ap, pr = np.array(err, acc, auc, ap, pr) / n_val
+                acc = accuracy_score(y, y_pred)
+                auc = roc_auc_score(y, y_pred)
+                ap = average_precision_score(y, y_pred)
+                rec5 = PrecisionAtRecall(recall = 0.05)(y, y_pred)
+                rec10 = PrecisionAtRecall(recall = 0.1)(y, y_pred)
+                rec20 = PrecisionAtRecall(recall = 0.2)(y, y_pred)
+            err, acc, auc, ap, rec5, rec10, rec20 = np.array(err, acc, auc, ap, rec5, rec10, rec20) / n_val
             if verbose:
                 print(f" val: err {err: .3f}, acc {acc: .3f}, "
-                        f"auc {auc: .3f}, ap {ap: .3f}, pr {pr: .3f}")
+                        f"auc {auc: .3f}, ap {ap: .3f}, pr {pr: .3f}"
+                        f"rec5 {rec5: .3f}, rec10 {rec10: .3f}, rec20 {rec20: .3f}")
             self.logs['val_err'].append(err)
             self.logs['val_acc'].append(acc)
             self.logs['val_auc'].append(auc)
             self.logs['val_ap'].append(ap)
-            self.logs['val_pr'].append(pr)
+            self.logs['val_rec5'].append(rec5)
+            self.logs['val_rec10'].append(rec10)
+            self.logs['val_rec20'].append(rec20)
 
     def train_gb(self, batches, verbose=True):
         train_batches, val_batches = batches
