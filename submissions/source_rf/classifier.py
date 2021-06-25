@@ -6,25 +6,28 @@ import tensorflow as tf
 
 from train_utils.batch import MakeBatch
 from train_utils.loss import UnbalancedMSE_nn, UnbalancedMSE_gb
-from predict_utils.neuralnet import nn_prediction
 from external_imports.utils.score_types import PrecisionAtRecall
 from sklearn.metrics import accuracy_score, roc_auc_score, average_precision_score
 
 class Classifier:
     def __init__(self):
         kl = tf.keras.layers
-        # training parameters
+        # training & architecture parameters
         self.n_epoch_nn = 1
         self.batch_size = 64
         self.lr_nn = 1e-3
         self.lr_gb = 0.1
+        self.timestamp = 96
+        self.n_features = 64
 
         # neural network
         self.loss_nn = UnbalancedMSE_nn(data='source')
         self.nn = tf.keras.Sequential([
-                kl.LSTM(64, dropout=0.0, recurrent_dropout=0.0,
-                        return_sequences=False, stateful=True),
-                kl.Dense(64, activation='linear'),
+                kl.LSTM(self.n_features, dropout=0.0, recurrent_dropout=0.0,
+                        return_sequences=False, stateful=True,
+                        input_shape=(self.timestamp, 10),
+                        activation='tanh'),
+                kl.Dense(self.n_features, activation='linear'),
                 kl.Dense(1, activation='sigmoid')
                 ])
         self.nn_opt = tf.keras.optimizers.Adam(learning_rate=self.lr_nn)
@@ -126,13 +129,23 @@ class Classifier:
         self.gb.fit(X_train, y_train, eval_set=(X_val, y_val), verbose=verbose)
 
     def predict_proba(self, X_target, X_target_bkg):
+        kl = tf.keras.layers
         X = self.batcher_pred(X_target)
         # get neural network without the last layer
+        # and copy it into a new algorithm with different seq_len
         inputs = self.nn.inputs
         outputs = self.nn.layers[-2].outputs
         partial_nn = tf.keras.Model(inputs=inputs, outputs=outputs)
+        test_nn = tf.keras.Sequential([
+                kl.LSTM(self.n_features,
+                        return_sequences=False, stateful=False,
+                        input_shape=(-1, 10),
+                        activation='tanh'),
+                kl.Dense(self.n_features, activation='linear'),
+                ])
+        test_nn.set_weights(partial_nn.get_weights())
 
-        X = partial_nn(X).numpy().reshape((-1,))
+        X = test_nn(X).numpy().reshape((-1,))
         y_proba = self.gb.predict_proba(X)
         return y_proba
 
