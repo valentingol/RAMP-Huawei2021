@@ -67,13 +67,14 @@ class Classifier:
                 grads = tape.gradient(err_tensor, self.nn.trainable_weights)
                 self.nn_opt.apply_gradients(zip(grads, self.nn.trainable_weights))
                 err = float(err_tensor)
-
-                acc = accuracy_score(y, y_pred)
-                auc = roc_auc_score(y, y_pred)
-                ap = average_precision_score(y, y_pred)
-                rec5 = PrecisionAtRecall(recall = 0.05)(y, y_pred)
-                rec10 = PrecisionAtRecall(recall = 0.1)(y, y_pred)
-                rec20 = PrecisionAtRecall(recall = 0.2)(y, y_pred)
+                # convert y, y_pred to numpy for metrics calculation
+                y_np, y_pred_np = y.numpy(), y_pred.numpy()
+                acc = accuracy_score(y_np, y_pred_np)
+                auc = roc_auc_score(y_np, y_pred_np)
+                ap = average_precision_score(y_np, y_pred_np)
+                rec5 = PrecisionAtRecall(recall = 0.05)(y_np, y_pred_np)
+                rec10 = PrecisionAtRecall(recall = 0.1)(y_np, y_pred_np)
+                rec20 = PrecisionAtRecall(recall = 0.2)(y_np, y_pred_np)
 
                 if verbose:
                     print(f" batch {i+1}, err {err: .3f}, acc {acc: .3f}, "
@@ -94,13 +95,15 @@ class Classifier:
             for X, y in val_batches:
                 y_pred = self.nn(X, training=False)
                 err += float(self.loss_nn(y, y_pred))
-                acc = accuracy_score(y, y_pred)
-                auc = roc_auc_score(y, y_pred)
-                ap = average_precision_score(y, y_pred)
-                rec5 = PrecisionAtRecall(recall = 0.05)(y, y_pred)
-                rec10 = PrecisionAtRecall(recall = 0.1)(y, y_pred)
-                rec20 = PrecisionAtRecall(recall = 0.2)(y, y_pred)
-            err, acc, auc, ap, rec5, rec10, rec20 = np.array(err, acc, auc, ap, rec5, rec10, rec20) / n_val
+                 # convert y, y_pred to numpy for metrics calculation
+                y_np, y_pred_np = y.numpy(), y_pred.numpy()
+                acc += accuracy_score(y_np, y_pred_np)
+                auc += roc_auc_score(y_np, y_pred_np)
+                ap += average_precision_score(y_np, y_pred_np)
+                rec5 += PrecisionAtRecall(recall = 0.05)(y_np, y_pred_np)
+                rec10 += PrecisionAtRecall(recall = 0.1)(y_np, y_pred_np)
+                rec20 += PrecisionAtRecall(recall = 0.2)(y_np, y_pred_np)
+            err, acc, auc, ap, rec5, rec10, rec20 = np.array(err, acc, auc,ap, rec5, rec10, rec20) / n_val
             if verbose:
                 print(f" val: err {err: .3f}, acc {acc: .3f}, "
                         f"auc {auc: .3f}, ap {ap: .3f}, pr {pr: .3f}"
