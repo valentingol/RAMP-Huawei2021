@@ -152,102 +152,57 @@ class Classifier:
         y_proba = self.gb.predict_proba(X)
         return y_proba
 
-    def batcher_pred(self, X):
-        """Split data to be correctly predicted by neural network
-        (1 prediction per day)
+    def batcher_pred(self, *args, **kwargs):
+        raise NotImplementedError("Deprecatd fonction, please use make_batch!")
+
+    def UnbalancedMSE_nn(self, y, y_pred, factor=9.0):
+        """Compute unbalenced MSE
 
         Parameters
         ----------
-        X : np.array
-            data to split
+        y : tf.Tensor
+            true labels
+        y_pred : tf.Tensor
+            predicted labels
+        factor : float, optional
+            multiplicative factor for label 1, by default 9.0
 
         Returns
-        ------
-        X_tensor : tf.Tensor
-            new data correctly splitted
+        ----------
+        err : tf.Tensor
+            result of unbalanced MSE loss
         """
-        raise NotImplementedError("batcher_pred must be "
-                                  "implemented for predictions")
+        err = tf.square(y_pred - y)
+        err = tf.where(y == 1.0, factor * err, err)
+        err = tf.math.reduce_mean(err)
+        return err
 
-    class UnbalancedMSE_nn(tf.keras.metrics.Metric):
-        def __init__(self, data='source', factor=9.0, name='unbalanced_mse', **kwargs):
-            """
-            Parameters
-            ----------
-            data : str, optional
-                type of data to cut. Should be 'source' or 'target',
-                by default 'source'
-            factor : float, optional
-                multiplicative factor for label 1, by default 9.0
-            name : str, optional
-                name of the function, by default 'unblanced_mse'
-            **kwargs:
-                keywords arguments for keras.metrics init
-                (could be empty)
-            """
-            super(UnbalancedMSE_nn, self).__init__(name=name, **kwargs)
-            self.data = data
-            self.factor = factor
+    def UnbalancedMSE_gb(self, y, y_pred, factor=9.0):
+        """Compute unbalenced MSE
 
-        def __call__(self, y, y_pred):
-            """Compute unbalenced MSE
+        Parameters
+        ----------
+        y : np.array
+            true labels
+        y_pred : np.array
+            predicted labels
+        factor : float, optional
+            multiplicative factor for label 1, by default 9.0
 
-            Parameters
-            ----------
-            y : tf.Tensor
-                true labels
-            y_pred : tf.Tensor
-                predicted labels
-
-            Returns
-            ----------
-            err : tf.Tensor
-                result of unbalanced MSE loss
-            """
-            err = tf.square(y_pred - y)
-            err = tf.where(y == 1.0, self.factor * err, err)
-            err = tf.math.reduce_mean(err)
-            return err
-
-    class UnbalancedMSE_gb(tf.keras.metrics.Metric):
-        def __init__(self, data='source', factor=9.0):
-            """
-            Parameters
-            ----------
-            data : str, optional
-                type of data to cut. Should be 'source' or 'target',
-                by default 'source'
-            factor : float, optional
-                    multiplicative factor for label 1, by default 9.0
-            """
-            self.data = data
-            self.factor = factor
-
-        def __call__(self, y, y_pred):
-            """Compute unbalenced MSE
-
-            Parameters
-            ----------
-            y : np.array
-                true labels
-            y_pred : np.array
-                predicted labels
-
-            Returns
-            ----------
-            grad : np.array
-                The value of the first order derivative (gradient)
-                of the loss with respect to the elements of y_pred
-                for each sample point.
-            hess : np.array
-                The value of the second order derivative (Hessian)
-                of the loss with respect to the elements of y_pred
-                for each sample point.
-            (see https://lightgbm.readthedocs.io/en/latest/pythonapi/lightgbm.LGBMClassifier.html for details)
-            """
-            # the loss is (y - ypred)**2, if y = 0
-            # and self.factor * (y - ypred)**2, otherwise
-            grad_mse = 2.0 * (y_pred - y)
-            grad = np.where(y == 1.0, self.factor * grad_mse, grad_mse)
-            hess = np.where(y == 1.0, self.factor * 2.0, 2.0)
-            return grad, hess
+        Returns
+        ----------
+        grad : np.array
+            The value of the first order derivative (gradient)
+            of the loss with respect to the elements of y_pred
+            for each sample point.
+        hess : np.array
+            The value of the second order derivative (Hessian)
+            of the loss with respect to the elements of y_pred
+            for each sample point.
+        """
+        # the loss is (y - ypred)**2, if y = 0
+        # and self.factor * (y - ypred)**2, otherwise
+        grad_mse = 2.0 * (y_pred - y)
+        grad = np.where(y == 1.0, factor * grad_mse, grad_mse)
+        hess = np.where(y == 1.0, factor * 2.0, 2.0)
+        return grad, hess
