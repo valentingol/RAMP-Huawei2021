@@ -4,9 +4,6 @@ import lightgbm
 import numpy as np
 import tensorflow as tf
 
-from train_utils.batch import MakeBatch
-from train_utils.loss import UnbalancedMSE_nn, UnbalancedMSE_gb
-from external_imports.utils.score_types import PrecisionAtRecall
 from sklearn.metrics import accuracy_score, roc_auc_score, average_precision_score
 
 class Classifier:
@@ -14,14 +11,15 @@ class Classifier:
         kl = tf.keras.layers
         # training & architecture parameters
         self.n_epoch_nn = 1
-        self.batch_size = 64
+        self.train_batch_size = 64
+        self.test_batch_size = 64
         self.lr_nn = 1e-3
         self.lr_gb = 0.1
         self.timestamp = 96
         self.n_features = 64
 
         # neural network
-        self.loss_nn = UnbalancedMSE_nn(data='source')
+        self.loss_nn = self.UnbalancedMSE_nn(data='source')
         self.nn = tf.keras.Sequential([
                 kl.LSTM(self.n_features, dropout=0.0, recurrent_dropout=0.0,
                         return_sequences=False, stateful=True,
@@ -34,7 +32,7 @@ class Classifier:
         self.nn.compile(self.nn_opt)
 
         # gradient boosting
-        self.loss_gb = UnbalancedMSE_gb(data='source')
+        self.loss_gb = self.UnbalancedMSE_gb(data='source')
         self.gb = lightgbm.LGBMClassifier(num_leaves=31,
                                           max_depth=3,
                                           learning_rate=self.lr_gb,
@@ -48,8 +46,7 @@ class Classifier:
 
     def fit(self, X_source, X_source_bkg, X_target, X_target_unlabeled,
             X_target_bkg, y_source, y_target):
-        batcher = MakeBatch(batch_size=self.batch_size, data='source', val_prop=0.2)
-        batches = batcher(X_source, y_source)
+        batches = self.make_batches_train(X_source, y_source, val_prop=0.2)
         # train neural network
         self.train_nn(batches)
         # train gradient boosting
@@ -133,8 +130,8 @@ class Classifier:
 
     def predict_proba(self, X_target, X_target_bkg):
         kl = tf.keras.layers
-        X = self.batcher_pred(X_target)
-        # get neural network without the last layer
+        X = self.make_batches_test(X_target)
+        # get neural network without the last layer              
         # and copy it into a new algorithm with different seq_len
         inputs = self.nn.inputs
         outputs = self.nn.layers[-2].outputs
@@ -147,10 +144,14 @@ class Classifier:
                 kl.Dense(self.n_features, activation='linear'),
                 ])
         test_nn.set_weights(partial_nn.get_weights())
-
-        X = test_nn(X).numpy().reshape((-1,))
-        y_proba = self.gb.predict_proba(X)
-        return y_proba
+        
+        y = []
+        for x_batch in X:
+            features = test_nn(x_batch).numpy()
+            y_proba = self.gb.predict_proba(features).reshape((-1,))
+            y.append(y_proba)
+        y = np.concatenate(y, axis=0)            
+        return y
 
     def batcher_pred(self, *args, **kwargs):
         raise NotImplementedError("Deprecatd fonction, please use make_batch!")
@@ -206,3 +207,95 @@ class Classifier:
         grad = np.where(y == 1.0, factor * grad_mse, grad_mse)
         hess = np.where(y == 1.0, factor * 2.0, 2.0)
         return grad, hess
+    
+    
+    def make_batches_test(self, X):
+        test_batches = None
+        n_total = len(X)
+        full_timestamps = X.shape[1]
+
+        n_test_batches = n_total - n_total % self.test_batch_size
+        X_test = X[0:n_test_batches]
+
+        X_test_batches = np.split(X_test, 1, axis=1)
+        X_test_batches = np.stack(X_test_batches, axis=0)
+        X_test_batches = np.split(X_test_batches, n_test_batches // self.test_batch_size, axis=1)
+        X_test_batches = np.stack(X_test_batches, axis=0)
+        X_test_batches = X_test_batches.reshape(-1, self.test_batch_size, full_timestamps, 10)       
+
+        test_batches = tf.convert_to_tensor(X_test_batches.squeeze())
+
+        return test_batches
+
+    def make_batches_train(self, X, y, val_prop = 0.2):
+        """
+        Parameters
+        ----------
+        X : np.array with dimension (users, timestamps, features)
+            data (inputs)
+        y : np.array with dimension (users,)
+            labels
+        Returns
+        -------
+        if pred_mode == 'train' :
+            train_batches : tuple of tf.Tensor (X_train_batches, y_train_batches)
+                Batched train data, of length batch_size. The number of batches is : n_train_batches//self.batch_size
+                train_batches[0] : data train batches (number of batches, batch_size, timestamps, features)
+                train_batches[1] : labels train batches (number of batches, batch_size)
+                
+            val_batches : tuple of tf.Tensor (X_train_batches, y_train_batches)
+                Batched train data, of length batch_size. The number of batches is : n_train_batches//self.batch_size
+                val_batches[0] : data validation batches (number of batches, batch_size, timestamps, features)
+                val_batches[1] : labels validation batches (number of batches, batch_size)
+        
+        if pred_mode == 'test':[]:
+            test_batches : tuple of tf.Tensor (X_test_batches, y_test_batches)
+                Batched train data, of length batch_size. The number of batches is : n_test_batches//self.batch_size
+                test_batches[0] : data test batches (number of batches, batch_size, timestamps, features)
+                test_batches[1] : labels test batches (number of batches, batch_size)
+                
+        """
+        #train mode
+        train_batches, val_batches = None, None
+        n_total = len(X)
+        full_timestamps = X.shape[1]
+
+        n_train = int((1.0 - val_prop) * n_total)
+        n_train_batches = n_train - n_train % self.train_batch_size
+        X_train = X[0:n_train_batches]
+        y_train = y[0:n_train_batches]
+
+        n_val = int(val_prop * n_total)
+        n_val_batches = n_val - n_val % self.train_batch_size
+        X_val = X[n_train:(n_train + n_val_batches)]
+        y_val = y[n_train:(n_train + n_val_batches)]
+            
+        X_train_batches = np.split(X_train, full_timestamps // self.timestamp, axis = 1)
+        X_train_batches = np.stack(X_train_batches, axis=0)
+        X_train_batches = np.split(X_train_batches, n_train_batches // self.train_batch_size, axis=1)
+        X_train_batches = np.stack(X_train_batches, axis=0)
+        X_train_batches = X_train_batches.reshape(-1, self.train_batch_size, self.timestamp, 10)       
+        y_train_batches = np.split(y_train, n_train_batches // self.train_batch_size, axis=0)
+        y_train_batches = np.stack(y_train_batches, axis=0)
+        y_train_batches = np.repeat(y_train_batches, full_timestamps // self.timestamp, axis = 0)
+
+        X_val_batches = np.split(X_val, full_timestamps // self.timestamp, axis=1)
+        X_val_batches = np.stack(X_val_batches, axis=0)
+        X_val_batches = np.split(X_val_batches, n_val_batches // self.train_batch_size, axis=1)
+        X_val_batches = np.stack(X_val_batches, axis=0)
+        X_train_batches = X_train_batches.reshape(-1, self.train_batch_size, self.timestamp, 10)       
+        y_val_batches = np.split(y_val, n_val_batches // self.train_batch_size, axis=0)
+        y_val_batches = np.stack(y_val_batches, axis=0)
+        y_val_batches = np.repeat(y_val_batches, full_timestamps // self.timestamp, axis=0)
+
+        X_train_batches = tf.convert_to_tensor(X_train_batches)
+        y_train_batches = tf.convert_to_tensor(y_train_batches)
+
+        X_val_batches = tf.convert_to_tensor(X_val_batches)
+        y_val_batches = tf.convert_to_tensor(y_val_batches)
+
+        train_batches = (X_train_batches, y_train_batches)
+        val_batches = (X_val_batches, y_val_batches)
+    
+        return train_batches, val_batches
+    
