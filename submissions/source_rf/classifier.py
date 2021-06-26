@@ -215,11 +215,11 @@ class Classifier:
         Parameters
         ----------
         X : np.array 
-            data (inputs) of shape (n_users, timestamps, features)
+            data (inputs) of shape (n_users, self.full_timestamp, features)
         Returns
         -------
         test_batches : list of tf.Tensor
-            Batched test data. Each batches has size (near test_batch_size, timestamps, features)
+            Batched test data. Each batches has size (near test_batch_size, self.full_timestamp, features)
         """
         n_total = len(X)
 
@@ -234,8 +234,8 @@ class Classifier:
         Parameters
         ----------
         X : np.array 
-            data (inputs) of shape (n_users, full_timestamp, features)
-        y : np.array with dimension (users,)
+            data (inputs) of shape (n_users, self.full_timestamp, features)
+        y : np.array with dimension (n_users,)
             labels (inputs) of shape (n_users,)
         val_prop : float, optional
             validation proportion (between 0. and 1.)
@@ -256,7 +256,6 @@ class Classifier:
             number of val batches = n_val - n_val % self.train_batch_size, with n_val = val_prop * n_users     
         """
         n_total = len(X)
-        full_timestamps = X.shape[1]
         
         if shuffle: 
             p = np.random.permutation(n_total)
@@ -273,23 +272,23 @@ class Classifier:
         X_val = X[n_train:(n_train + n_val_batches)]
         y_val = y[n_train:(n_train + n_val_batches)]
             
-        X_train_batches = np.split(X_train, full_timestamps // self.timestamp, axis = 1)
+        X_train_batches = np.split(X_train, self.full_timestamp // self.timestamp, axis = 1)
         X_train_batches = np.stack(X_train_batches, axis=0)
         X_train_batches = np.split(X_train_batches, n_train_batches // self.train_batch_size, axis=1)
         X_train_batches = np.stack(X_train_batches, axis=0)
         X_train_batches = X_train_batches.reshape(-1, self.train_batch_size, self.timestamp, 10)       
         y_train_batches = np.split(y_train, n_train_batches // self.train_batch_size, axis=0)
         y_train_batches = np.stack(y_train_batches, axis=0)
-        y_train_batches = np.repeat(y_train_batches, full_timestamps // self.timestamp, axis = 0)
+        y_train_batches = np.repeat(y_train_batches, self.full_timestamp // self.timestamp, axis = 0)
 
-        X_val_batches = np.split(X_val, full_timestamps // self.timestamp, axis=1)
+        X_val_batches = np.split(X_val, self.full_timestamp // self.timestamp, axis=1)
         X_val_batches = np.stack(X_val_batches, axis=0)
         X_val_batches = np.split(X_val_batches, n_val_batches // self.train_batch_size, axis=1)
         X_val_batches = np.stack(X_val_batches, axis=0)
         X_train_batches = X_train_batches.reshape(-1, self.train_batch_size, self.timestamp, 10)       
         y_val_batches = np.split(y_val, n_val_batches // self.train_batch_size, axis=0)
         y_val_batches = np.stack(y_val_batches, axis=0)
-        y_val_batches = np.repeat(y_val_batches, full_timestamps // self.timestamp, axis=0)
+        y_val_batches = np.repeat(y_val_batches, self.full_timestamp // self.timestamp, axis=0)
 
         X_train_batches = tf.convert_to_tensor(X_train_batches)
         y_train_batches = tf.convert_to_tensor(y_train_batches)
