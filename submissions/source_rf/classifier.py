@@ -10,7 +10,7 @@ class Classifier:
     def __init__(self):
         kl = tf.keras.layers
         # training & architecture parameters
-        self.n_epoch_nn = 3
+        self.n_epoch_nn = 1 # Change to 3
         self.train_batch_size = 128
         self.test_batch_size = 64
         self.lr_nn = 1e-3
@@ -48,6 +48,8 @@ class Classifier:
     def fit(self, X_source, X_source_bkg, X_target, X_target_unlabeled,
             X_target_bkg, y_source, y_target):
         self.full_timestamp = X_source.shape[1]
+
+        #Experiment 1: Training only on city B
         batches = self.make_batches_train(X_source, y_source, val_prop=0.2)
         # train neural network
         self.train_nn(batches)
@@ -138,7 +140,7 @@ class Classifier:
         inputs_val, labels_val = val_batches
         # get neural network without the last layer
         inputs = self.nn.inputs
-        outputs = self.nn.layers[-2].outputs
+        outputs = self.nn.layers[-2].output
         partial_nn = tf.keras.Model(inputs=inputs, outputs=outputs)
 
         X_train = partial_nn(inputs_train).numpy().reshape((-1,))
