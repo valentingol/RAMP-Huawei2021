@@ -215,11 +215,11 @@ class Classifier:
         Parameters
         ----------
         X : np.array 
-            data (inputs) of shape (n_users, self.full_timestamp, features)
+            data (inputs) of shape (n_users, full_timestamp, features)
         Returns
         -------
         test_batches : list of tf.Tensor
-            Batched test data. Each batches has size (near test_batch_size, self.full_timestamp, features)
+            Batched test data. Each batches has size (near test_batch_size, full_timestamp, features)
         """
         n_total = len(X)
 
@@ -234,7 +234,7 @@ class Classifier:
         Parameters
         ----------
         X : np.array 
-            data (inputs) of shape (n_users, self.full_timestamp, features)
+            data (inputs) of shape (n_users, full_timestamp, features)
         y : np.array with dimension (n_users,)
             labels (inputs) of shape (n_users,)
         val_prop : float, optional
@@ -245,15 +245,15 @@ class Classifier:
         -------
         train_batches : tuple of tf.Tensor 
             Batched train data (X_train_batches, y_train_batches)
-            X_train_batches : data train batches of shape (number of train batches, self.train_batch_size, self.timestamp, features)
-            y_train_batches : labels train batches of shape (number of train batches, self.train_batch_size)
-            number of train batches = n_train - n_train % self.train_batch_size, with n_train = (1. - val_prop) * n_users
+            X_train_batches : data train batches of shape (number of train batches, train_batch_size, timestamp, features)
+            y_train_batches : labels train batches of shape (number of train batches, train_batch_size)
+            number of train batches = n_train - n_train % train_batch_size, with n_train = (1. - val_prop) * n_users
             
         val_batches : tuple of tf.Tensor 
             Batched validation data (X_val_batches, y_val_batches). 
-            X_val_batches : data validation batches (number of val batches, self.train_batch_size, self.timestamp, features)
-            y_val_batches : labels validation batches (number of val batches, self.train_batch_size)
-            number of val batches = n_val - n_val % self.train_batch_size, with n_val = val_prop * n_users     
+            X_val_batches : data validation batches (number of val batches, train_batch_size, timestamp, features)
+            y_val_batches : labels validation batches (number of val batches, train_batch_size)
+            number of val batches = n_val - n_val % train_batch_size, with n_val = val_prop * n_users     
         """
         n_total = len(X)
         
@@ -300,4 +300,3 @@ class Classifier:
         val_batches = (X_val_batches, y_val_batches)
     
         return train_batches, val_batches
-    
