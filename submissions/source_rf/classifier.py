@@ -54,7 +54,6 @@ class Classifier:
                                   axis=0)
         self.full_timestamp = X_source.shape[1]
 
-        #Experiment 1: Training only on city B
         batches = self.make_batches_train(X_source, y_source, val_prop=0.2)
         # train neural network
         self.train_nn(batches)
@@ -86,58 +85,58 @@ class Classifier:
                 err = float(err_tensor)
                 print("train : ", err)
                 # convert y, y_pred to numpy for metrics calculation
-                #y_np, y_pred_np = y.numpy(), y_pred.numpy()
-                #y_pred_binary = np.zeros_like(y_pred_np)
-                #y_pred_binary[y_pred_np > 0.5] = 1
-                #acc = accuracy_score(y_np, y_pred_np)
-                #auc = roc_auc_score(y_np, y_pred_np)
-                #ap = average_precision_score(y_np, y_pred_np)
-                #rec5 = PrecisionAtRecall(recall = 0.05)(y_np, y_pred_np)
-                #rec10 = PrecisionAtRecall(recall = 0.1)(y_np, y_pred_np)
-                #rec20 = PrecisionAtRecall(recall = 0.2)(y_np, y_pred_np)
+                y_np, y_pred_np = y.numpy(), y_pred.numpy()
+                y_pred_binary = np.zeros_like(y_pred_np)
+                y_pred_binary[y_pred_np > 0.5] = 1
+                acc = accuracy_score(y_np, y_pred_binary)
+                auc = roc_auc_score(y_np, y_pred_np)
+                ap = average_precision_score(y_np, y_pred_np)
+                rec5 = self.precision_at_recall(y_np, y_pred_np, rec = 0.05)
+                rec10 = self.precision_at_recall(y_np, y_pred_np, rec = 0.10)
+                rec20 = self.precision_at_recall(y_np, y_pred_np, rec = 0.20)
 
-            #     if verbose:
-            #         print(f" batch {i+1}, err {err: .3f}, acc {acc: .3f}, "
-            #             f"auc {auc: .3f}, ap {ap: .3f}, pr {pr: .3f}, "
-            #             f"rec5 {rec5: .3f}, rec10 {rec10: .3f}, rec20 {rec20: .3f}        ",
-            #             end='\r')
-            #     self.logs['train_err'].append(err)
-            #     self.logs['train_acc'].append(acc)
-            #     self.logs['train_auc'].append(auc)
-            #     self.logs['train_ap'].append(ap)
-            #     self.logs['train_rec5'].append(rec5)
-            #     self.logs['train_rec10'].append(rec10)
-            #     self.logs['train_rec20'].append(rec20)
-            # if verbose: print()
+                if verbose:
+                    print(f" batch {i+1}, err {err: .3f}, acc {acc: .3f}, "
+                        f"auc {auc: .3f}, ap {ap: .3f}, "
+                        f"rec5 {rec5: .3f}, rec10 {rec10: .3f}, rec20 {rec20: .3f}        ",
+                        end='\r')
+                self.logs['train_err'].append(err)
+                self.logs['train_acc'].append(acc)
+                self.logs['train_auc'].append(auc)
+                self.logs['train_ap'].append(ap)
+                self.logs['train_rec5'].append(rec5)
+                self.logs['train_rec10'].append(rec10)
+                self.logs['train_rec20'].append(rec20)
+                if verbose: print()
             # validation loop
-            # err, acc, auc, ap, pr = 0, 0, 0, 0, 0
-            # n_val = len(val_batches)
-            # for i in range(len(val_batches[0])):
-            #     X = val_batches[0][i]
-            #     y = val_batches[1][i]
-            #     y_pred = self.nn(X, training=False)
-            #     err = float(self.loss_nn(y, y_pred))
-            #     print("val err : ", err)
-            #      # convert y, y_pred to numpy for metrics calculation
-            #     y_np, y_pred_np = y.numpy(), y_pred.numpy()
-            #     acc += accuracy_score(y_np, y_pred_np)
-            #     auc += roc_auc_score(y_np, y_pred_np)
-            #     ap += average_precision_score(y_np, y_pred_np)
-            #     rec5 += PrecisionAtRecall(recall = 0.05)(y_np, y_pred_np)
-            #     rec10 += PrecisionAtRecall(recall = 0.1)(y_np, y_pred_np)
-            #     rec20 += PrecisionAtRecall(recall = 0.2)(y_np, y_pred_np)
-            # err, acc, auc, ap, rec5, rec10, rec20 = np.array(err, acc, auc,ap, rec5, rec10, rec20) / n_val
-            # if verbose:
-            #     print(f" val: err {err: .3f}, acc {acc: .3f}, "
-            #             f"auc {auc: .3f}, ap {ap: .3f}, pr {pr: .3f}"
-            #             f"rec5 {rec5: .3f}, rec10 {rec10: .3f}, rec20 {rec20: .3f}")
-            # self.logs['val_err'].append(err)
-            # self.logs['val_acc'].append(acc)
-            # self.logs['val_auc'].append(auc)
-            # self.logs['val_ap'].append(ap)
-            # self.logs['val_rec5'].append(rec5)
-            # self.logs['val_rec10'].append(rec10)
-            # self.logs['val_rec20'].append(rec20)
+            err, acc, auc, ap, rec5, rec10, rec20 = 0, 0, 0, 0, 0, 0, 0
+            n_val = len(val_batches)
+            for i in range(len(val_batches[0])):
+                X = val_batches[0][i]
+                y = val_batches[1][i]
+                y_pred = self.nn(X, training=False)
+                err = float(self.loss_nn(y, y_pred))
+                print("val err : ", err)
+                # convert y, y_pred to numpy for metrics calculation
+                y_np, y_pred_np = y.numpy(), y_pred.numpy()
+                acc += accuracy_score(y_np, y_pred_np)
+                auc += roc_auc_score(y_np, y_pred_np)
+                ap += average_precision_score(y_np, y_pred_np)
+                rec5 = self.precision_at_recall(y_np, y_pred_np, rec = 0.05)
+                rec10 = self.precision_at_recall(y_np, y_pred_np, rec = 0.10)
+                rec20 = self.precision_at_recall(y_np, y_pred_np, rec = 0.20)
+            err, acc, auc, ap, rec5, rec10, rec20 = np.array(err, acc, auc,ap, rec5, rec10, rec20) / n_val
+            if verbose:
+                print(f" val: err {err: .3f}, acc {acc: .3f}, "
+                        f"auc {auc: .3f}, ap {ap: .3f}, "
+                        f"rec5 {rec5: .3f}, rec10 {rec10: .3f}, rec20 {rec20: .3f}")
+            self.logs['val_err'].append(err)
+            self.logs['val_acc'].append(acc)
+            self.logs['val_auc'].append(auc)
+            self.logs['val_ap'].append(ap)
+            self.logs['val_rec5'].append(rec5)
+            self.logs['val_rec10'].append(rec10)
+            self.logs['val_rec20'].append(rec20)
 
     def train_gb(self, batches, verbose=True):
         train_batches, val_batches = batches
@@ -329,8 +328,7 @@ class Classifier:
 
     def precision_at_recall(self, y_true_proba, y_proba, rec = 0.2):
 
-        precision, recall, thresholds = precision_recall_curve(y_true_proba, y_proba)
+        precision, recall, thresholds = precision_recall_curve (y_true_proba, y_proba)
         idx = np.where(recall < rec)[0]
 
         return precision[idx[0]]
-
