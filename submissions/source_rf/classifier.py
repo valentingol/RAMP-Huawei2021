@@ -146,15 +146,12 @@ class Classifier:
         test_nn.set_weights(partial_nn.get_weights())
         
         y = []
-        for x_batch in X:
-            features = test_nn(x_batch).numpy()
+        for X_batch in X:
+            features = test_nn(X_batch).numpy()
             y_proba = self.gb.predict_proba(features).reshape((-1,))
             y.append(y_proba)
         y = np.concatenate(y, axis=0)            
         return y
-
-    def batcher_pred(self, *args, **kwargs):
-        raise NotImplementedError("Deprecatd fonction, please use make_batch!")
 
     def UnbalancedMSE_nn(self, y, y_pred, factor=9.0):
         """Compute unbalenced MSE
@@ -209,56 +206,55 @@ class Classifier:
         return grad, hess
     
     
-    def make_batches_test(self, X):
-        test_batches = None
+    def make_batches_test(X):
+        """Compute batches list for testings
+        
+        Parameters
+        ----------
+        X : np.array 
+            data (inputs) of shape (n_users, timestamps, features)
+        Returns
+        -------
+        test_batches : list of tf.Tensor
+            Batched test data. Each batches has size (near test_batch_size, timestamps, features)
+        """
         n_total = len(X)
-        full_timestamps = X.shape[1]
 
-        n_test_batches = n_total - n_total % self.test_batch_size
-        X_test = X[0:n_test_batches]
-
-        X_test_batches = np.split(X_test, 1, axis=1)
-        X_test_batches = np.stack(X_test_batches, axis=0)
-        X_test_batches = np.split(X_test_batches, n_test_batches // self.test_batch_size, axis=1)
-        X_test_batches = np.stack(X_test_batches, axis=0)
-        X_test_batches = X_test_batches.reshape(-1, self.test_batch_size, full_timestamps, 10)       
-
-        test_batches = tf.convert_to_tensor(X_test_batches.squeeze())
+        X_test_batches = np.array_split(X, n_total // self.test_batch_size, axis=0)
+        test_batches = [tf.convert_to_tensor(batch) for batch in X_test_batches]
 
         return test_batches
 
-    def make_batches_train(self, X, y, val_prop = 0.2):
-        """
+    def make_batches_train(self, X, y, val_prop = 0.2, shuffle = False):
+        """Compute batches tensors for training and validation
+        
         Parameters
         ----------
-        X : np.array with dimension (users, timestamps, features)
-            data (inputs)
+        X : np.array 
+            data (inputs) of shape dimension (n_users, timestamps, features)
         y : np.array with dimension (users,)
-            labels
+            labels (inputs) of shape dimension (n_users,)
         Returns
         -------
-        if pred_mode == 'train' :
-            train_batches : tuple of tf.Tensor (X_train_batches, y_train_batches)
-                Batched train data, of length batch_size. The number of batches is : n_train_batches//self.batch_size
-                train_batches[0] : data train batches (number of batches, batch_size, timestamps, features)
-                train_batches[1] : labels train batches (number of batches, batch_size)
-                
-            val_batches : tuple of tf.Tensor (X_train_batches, y_train_batches)
-                Batched train data, of length batch_size. The number of batches is : n_train_batches//self.batch_size
-                val_batches[0] : data validation batches (number of batches, batch_size, timestamps, features)
-                val_batches[1] : labels validation batches (number of batches, batch_size)
-        
-        if pred_mode == 'test':[]:
-            test_batches : tuple of tf.Tensor (X_test_batches, y_test_batches)
-                Batched train data, of length batch_size. The number of batches is : n_test_batches//self.batch_size
-                test_batches[0] : data test batches (number of batches, batch_size, timestamps, features)
-                test_batches[1] : labels test batches (number of batches, batch_size)
-                
+        train_batches : tuple of tf.Tensor 
+            Batched train data (X_train_batches, y_train_batches)
+            X_train_batches : data train batches of shape (number of train batches, train_batch_size, timestamps, features)
+            y_train_batches : labels train batches of shape (number of train batches, train_batch_size)
+            number of train batches = n_train - n_train % self.train_batch_size, with n_train = (1. - val_prop) * n_users
+            
+        val_batches : tuple of tf.Tensor 
+            Batched validation data (X_val_batches, y_val_batches). 
+            X_val_batches : data validation batches (number of val batches, train_batch_size, timestamps, features)
+            y_val_batches : labels validation batches (number of val batches, train_batch_size)
+            number of val batches = n_val - n_val % self.train_batch_size, with n_val = val_prop * n_users     
         """
-        #train mode
-        train_batches, val_batches = None, None
         n_total = len(X)
         full_timestamps = X.shape[1]
+        
+        if shuffle: 
+            p = np.random.permutation(n_total)
+            X = X[p]
+            y = y[p]
 
         n_train = int((1.0 - val_prop) * n_total)
         n_train_batches = n_train - n_train % self.train_batch_size
