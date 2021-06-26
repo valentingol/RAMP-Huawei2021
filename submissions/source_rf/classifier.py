@@ -47,6 +47,11 @@ class Classifier:
 
     def fit(self, X_source, X_source_bkg, X_target, X_target_unlabeled,
             X_target_bkg, y_source, y_target):
+        # add bkg data with label 0
+        len_source_bkg = len(X_source_bkg)
+        X_source = np.concatenate((X_source, X_source_bkg), axis=0)
+        y_source = np.concatenate((y_source, np.array([0.0]*len_source_bkg)),
+                                  axis=0)
         self.full_timestamp = X_source.shape[1]
 
         #Experiment 1: Training only on city B
