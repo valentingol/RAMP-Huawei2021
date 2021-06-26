@@ -4,7 +4,7 @@ import lightgbm
 import numpy as np
 import tensorflow as tf
 
-from sklearn.metrics import accuracy_score, roc_auc_score, average_precision_score
+from sklearn.metrics import accuracy_score, roc_auc_score, average_precision_score, precision_recall_curve
 
 class Classifier:
     def __init__(self):
@@ -47,7 +47,10 @@ class Classifier:
     def fit(self, X_source, X_source_bkg, X_target, X_target_unlabeled,
             X_target_bkg, y_source, y_target):
         self.full_timestamp = X_source.shape[1]
-        batches = self.make_batches_train(X_source, y_source, val_prop=0.2)
+
+
+        #Experiment 1: training only on city B
+        batches = self.make_batches_train(X_target, y_target, val_prop=0.2)
         # train neural network
         self.train_nn(batches)
         # train gradient boosting
@@ -72,9 +75,9 @@ class Classifier:
                 acc = accuracy_score(y_np, y_pred_np)
                 auc = roc_auc_score(y_np, y_pred_np)
                 ap = average_precision_score(y_np, y_pred_np)
-                rec5 = PrecisionAtRecall(recall = 0.05)(y_np, y_pred_np)
-                rec10 = PrecisionAtRecall(recall = 0.1)(y_np, y_pred_np)
-                rec20 = PrecisionAtRecall(recall = 0.2)(y_np, y_pred_np)
+                rec5 = self.precision_at_recall(y_np, y_pred_np, rec = .05)
+                rec10 = self.precision_at_recall(y_np, y_pred_np, rec = .10)
+                rec20 = self.precision_at_recall(y_np, y_pred_np, rec = .20)
 
                 if verbose:
                     print(f" batch {i+1}, err {err: .3f}, acc {acc: .3f}, "
@@ -100,10 +103,10 @@ class Classifier:
                 acc += accuracy_score(y_np, y_pred_np)
                 auc += roc_auc_score(y_np, y_pred_np)
                 ap += average_precision_score(y_np, y_pred_np)
-                rec5 += PrecisionAtRecall(recall = 0.05)(y_np, y_pred_np)
-                rec10 += PrecisionAtRecall(recall = 0.1)(y_np, y_pred_np)
-                rec20 += PrecisionAtRecall(recall = 0.2)(y_np, y_pred_np)
-            err, acc, auc, ap, rec5, rec10, rec20 = np.array(err, acc, auc,ap, rec5, rec10, rec20) / n_val
+                rec5 += self.precision_at_recall(y_np, y_pred_np, rec = .05)
+                rec10 += self.precision_at_recall(y_np, y_pred_np, rec = .10)
+                rec20 += self.precision_at_recall(y_np, y_pred_np, rec = .20)
+            err, acc, auc, ap, rec5, rec10, rec20 = np.array(err, acc, auc, ap, rec5, rec10, rec20) / n_val
             if verbose:
                 print(f" val: err {err: .3f}, acc {acc: .3f}, "
                         f"auc {auc: .3f}, ap {ap: .3f}, pr {pr: .3f}"
@@ -131,9 +134,9 @@ class Classifier:
         y_val = labels_val.numpy().reshape((-1,))
         self.gb.fit(X_train, y_train, eval_set=(X_val, y_val), verbose=verbose)
 
-    def predict_proba(self, X_target, X_target_bkg):
+    def predict_proba(self, X_target_unlabeled, X_target_bkg):
         kl = tf.keras.layers
-        X = self.make_batches_test(X_target)
+        X = self.make_batches_test(X_target_unlabeled)
         # get neural network without the last layer
         # and copy it into a new algorithm with different seq_len
         inputs = self.nn.inputs
@@ -302,3 +305,12 @@ class Classifier:
         val_batches = (X_val_batches, y_val_batches)
     
         return train_batches, val_batches
+
+
+    def precision_at_recall(self, y_true_proba, y_proba, rec = 0.2):
+
+        precision, recall, thresholds = precision_recall_curve (y_true_proba, y_proba)
+        idx = np.where(recall < rec)[0]
+
+        return precision[idx[0]]
+
