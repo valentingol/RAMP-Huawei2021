@@ -234,6 +234,10 @@ class Classifier:
             data (inputs) of shape (n_users, timestamps, features)
         y : np.array with dimension (users,)
             labels (inputs) of shape (n_users,)
+        val_prop : float, optional
+            validation proportion (between 0. and 1.)
+        shuffle : Boolean
+            shuffle X and y the same way if True, do nothing if False
         Returns
         -------
         train_batches : tuple of tf.Tensor 
