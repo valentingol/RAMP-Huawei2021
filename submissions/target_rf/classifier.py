@@ -49,6 +49,15 @@ class Classifier:
 
     def fit(self, X_source, X_source_bkg, X_target, X_target_unlabeled,
             X_target_bkg, y_source, y_target):
+        # add bkg data with label 0
+        len_target_bkg = len(X_target_bkg)
+        X_target = np.concatenate((X_target, X_target_bkg), axis=0)
+        y_target = np.concatenate((y_target, np.array([0.0]*len_target_bkg)),
+                                  axis=0)
+        len_source_bkg = len(X_source_bkg)
+        X_source = np.concatenate((X_source, X_source_bkg), axis=0)
+        y_source = np.concatenate((y_source, np.array([0.0]*len_source_bkg)),
+                                  axis=0)
         # train on source:
         self.full_timestamp = X_source.shape[1]
         batches = self.make_batches_train(X_source, y_source, val_prop=0.2)
@@ -65,18 +74,18 @@ class Classifier:
             for i, y in enumerate(preds):
                 if y <= self.unsupervised_tresholds[0]:
                     # associate label 0 to the data
-                    X_target = np.concatenate(X_target, X_target_unlabeled[i], axis=0)
-                    y_target = np.concatenate(y_target, 0.0, axis=0)
+                    X_target = np.concatenate((X_target, X_target_unlabeled[i]), axis=0)
+                    y_target = np.concatenate(y_target, np.array([0.0]), axis=0)
                     # remove the inputs from unlabeled data
-                    X_target_unlabeled = np.concatenate(X_target_unlabeled[:i],
-                                                        X_target_unlabeled[i+1:], axis=0)
+                    X_target_unlabeled = np.concatenate((X_target_unlabeled[:i],
+                                                        X_target_unlabeled[i+1:]), axis=0)
                 elif y >= self.unsupervised_tresholds[1]:
                     # associate label 1 to the data
-                    X_target = np.concatenate(X_target, X_target_unlabeled[i], axis=0)
-                    y_target = np.concatenate(y_target, 1.0, axis=0)
+                    X_target = np.concatenate((X_target, X_target_unlabeled[i]), axis=0)
+                    y_target = np.concatenate((y_target, np.array([1.0])), axis=0)
                     # remove the inputs from unlabeled data
-                    X_target_unlabeled = np.concatenate(X_target_unlabeled[:i],
-                                                        X_target_unlabeled[i+1:], axis=0)
+                    X_target_unlabeled = np.concatenate((X_target_unlabeled[:i],
+                                                        X_target_unlabeled[i+1:]), axis=0)
             # retrain with new data
             batches = self.make_batches_train(X_target, y_target, val_prop=0.2)
             self.train_nn(batches)
