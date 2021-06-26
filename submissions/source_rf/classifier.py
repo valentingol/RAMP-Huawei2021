@@ -131,7 +131,7 @@ class Classifier:
     def predict_proba(self, X_target, X_target_bkg):
         kl = tf.keras.layers
         X = self.make_batches_test(X_target)
-        # get neural network without the last layer              
+        # get neural network without the last layer
         # and copy it into a new algorithm with different seq_len
         inputs = self.nn.inputs
         outputs = self.nn.layers[-2].outputs
@@ -206,7 +206,7 @@ class Classifier:
         return grad, hess
     
     
-    def make_batches_test(X):
+    def make_batches_test(self, X):
         """Compute batches list for testings
         
         Parameters
@@ -231,9 +231,9 @@ class Classifier:
         Parameters
         ----------
         X : np.array 
-            data (inputs) of shape dimension (n_users, timestamps, features)
+            data (inputs) of shape (n_users, timestamps, features)
         y : np.array with dimension (users,)
-            labels (inputs) of shape dimension (n_users,)
+            labels (inputs) of shape (n_users,)
         Returns
         -------
         train_batches : tuple of tf.Tensor 
