@@ -19,7 +19,7 @@ class Classifier:
         self.n_features = 64
 
         # neural network
-        self.loss_nn = self.UnbalancedMSE_nn(data='source')
+        self.loss_nn = self.UnbalancedMSE_nn
         self.nn = tf.keras.Sequential([
                 kl.LSTM(self.n_features, dropout=0.0, recurrent_dropout=0.0,
                         return_sequences=False, stateful=True,
@@ -32,7 +32,7 @@ class Classifier:
         self.nn.compile(self.nn_opt)
 
         # gradient boosting
-        self.loss_gb = self.UnbalancedMSE_gb(data='source')
+        self.loss_gb = self.UnbalancedMSE_gb
         self.gb = lightgbm.LGBMClassifier(num_leaves=31,
                                           max_depth=3,
                                           learning_rate=self.lr_gb,
@@ -55,7 +55,7 @@ class Classifier:
 
     def train_nn(self, batches, verbose=True):
         train_batches, val_batches = batches
-        for epoch in self.n_epoch_nn:
+        for epoch in range(self.n_epoch_nn):
             if verbose: print(f'epoch {epoch+1}/{self.n_epoch_nn}')
             # train loop
             for i, X, y in enumerate(train_batches):
@@ -72,9 +72,9 @@ class Classifier:
                 acc = accuracy_score(y_np, y_pred_np)
                 auc = roc_auc_score(y_np, y_pred_np)
                 ap = average_precision_score(y_np, y_pred_np)
-                rec5 = PrecisionAtRecall(recall = 0.05)(y_np, y_pred_np)
-                rec10 = PrecisionAtRecall(recall = 0.1)(y_np, y_pred_np)
-                rec20 = PrecisionAtRecall(recall = 0.2)(y_np, y_pred_np)
+                #rec5 = PrecisionAtRecall(recall = 0.05)(y_np, y_pred_np)
+                #rec10 = PrecisionAtRecall(recall = 0.1)(y_np, y_pred_np)
+                #rec20 = PrecisionAtRecall(recall = 0.2)(y_np, y_pred_np)
 
                 if verbose:
                     print(f" batch {i+1}, err {err: .3f}, acc {acc: .3f}, "
@@ -100,9 +100,9 @@ class Classifier:
                 acc += accuracy_score(y_np, y_pred_np)
                 auc += roc_auc_score(y_np, y_pred_np)
                 ap += average_precision_score(y_np, y_pred_np)
-                rec5 += PrecisionAtRecall(recall = 0.05)(y_np, y_pred_np)
-                rec10 += PrecisionAtRecall(recall = 0.1)(y_np, y_pred_np)
-                rec20 += PrecisionAtRecall(recall = 0.2)(y_np, y_pred_np)
+                #rec5 += PrecisionAtRecall(recall = 0.05)(y_np, y_pred_np)
+                #rec10 += PrecisionAtRecall(recall = 0.1)(y_np, y_pred_np)
+                #rec20 += PrecisionAtRecall(recall = 0.2)(y_np, y_pred_np)
             err, acc, auc, ap, rec5, rec10, rec20 = np.array(err, acc, auc,ap, rec5, rec10, rec20) / n_val
             if verbose:
                 print(f" val: err {err: .3f}, acc {acc: .3f}, "
