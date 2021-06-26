@@ -47,6 +47,11 @@ class Classifier:
 
     def fit(self, X_source, X_source_bkg, X_target, X_target_unlabeled,
             X_target_bkg, y_source, y_target):
+        # add bkg data with label 0
+        len_source_bkg = len(X_source_bkg)
+        X_source = np.concatenate((X_source, X_source_bkg), axis=0)
+        y_source = np.concatenate((y_source, np.array([0.0]*len_source_bkg)),
+                                  axis=0)
         self.full_timestamp = X_source.shape[1]
 
         batches = self.make_batches_train(X_source, y_source, val_prop=0.2)
@@ -170,8 +175,8 @@ class Classifier:
             features = test_nn(X_batch).numpy()
             y_proba = self.gb.predict_proba(features).reshape((-1,))
             y.append(y_proba)
-        y = np.concatenate(y, axis=0)   
-        print("y_pred_proba shape :  ", y.shape)         
+        y = np.concatenate(y, axis=0)
+        print("y_pred_proba shape :  ", y.shape)
         return y
 
     def UnbalancedMSE_nn(self, y, y_pred, factor=9.0):
@@ -225,16 +230,16 @@ class Classifier:
         grad = np.where(y == 1.0, factor * grad_mse, grad_mse)
         hess = np.where(y == 1.0, factor * 2.0, 2.0)
         return grad, hess
-    
-    
+
+
     def make_batches_test(self, X):
         """Compute batches list for testings
-        
+
         Parameters
         ----------
-        X : np.array 
+        X : np.array
             data (inputs) of shape (n_users, full_timestamp, features)
-        
+
         Returns
         -------
         test_batches : list of tf.Tensor
@@ -249,35 +254,35 @@ class Classifier:
 
     def make_batches_train(self, X, y, val_prop = 0.2, shuffle = False):
         """Compute batches tensors for training and validation
-        
+
         Parameters
         ----------
-        X : np.array 
+        X : np.array
             data (inputs) of shape (n_users, full_timestamp, features)
         y : np.array with dimension (n_users,)
             labels (inputs) of shape (n_users,)
-        val_prop : float, optional 
+        val_prop : float, optional
             validation proportion (between 0. and 1.)
         shuffle : Boolean, optional
             shuffle X and y the same way if True, do nothing if False
-        
+
         Returns
         -------
-        train_batches : tuple of tf.Tensor 
+        train_batches : tuple of tf.Tensor
             Batched train data (X_train_batches, y_train_batches)
             X_train_batches : data train batches of shape (number of train batches, train_batch_size, timestamp, features)
             y_train_batches : labels train batches of shape (number of train batches, train_batch_size)
             number of train batches = n_train - n_train % train_batch_size, with n_train = (1. - val_prop) * n_users
-            
-        val_batches : tuple of tf.Tensor 
-            Batched validation data (X_val_batches, y_val_batches). 
+
+        val_batches : tuple of tf.Tensor
+            Batched validation data (X_val_batches, y_val_batches).
             X_val_batches : data validation batches (number of val batches, train_batch_size, timestamp, features)
             y_val_batches : labels validation batches (number of val batches, train_batch_size)
-            number of val batches = n_val - n_val % train_batch_size, with n_val = val_prop * n_users     
+            number of val batches = n_val - n_val % train_batch_size, with n_val = val_prop * n_users
         """
         n_total = len(X)
-        
-        if shuffle: 
+
+        if shuffle:
             p = np.random.permutation(n_total)
             X = X[p]
             y = y[p]
@@ -291,12 +296,12 @@ class Classifier:
         n_val_batches = n_val - n_val % self.train_batch_size
         X_val = X[n_train:(n_train + n_val_batches)]
         y_val = y[n_train:(n_train + n_val_batches)]
-            
+
         X_train_batches = np.split(X_train, self.full_timestamp // self.timestamp, axis = 1)
         X_train_batches = np.stack(X_train_batches, axis=0)
         X_train_batches = np.split(X_train_batches, n_train_batches // self.train_batch_size, axis=1)
         X_train_batches = np.stack(X_train_batches, axis=0)
-        X_train_batches = X_train_batches.reshape(-1, self.train_batch_size, self.timestamp, 10)       
+        X_train_batches = X_train_batches.reshape(-1, self.train_batch_size, self.timestamp, 10)
         y_train_batches = np.split(y_train, n_train_batches // self.train_batch_size, axis=0)
         y_train_batches = np.stack(y_train_batches, axis=0)
         y_train_batches = np.repeat(y_train_batches, self.full_timestamp // self.timestamp, axis = 0)
@@ -305,7 +310,7 @@ class Classifier:
         X_val_batches = np.stack(X_val_batches, axis=0)
         X_val_batches = np.split(X_val_batches, n_val_batches // self.train_batch_size, axis=1)
         X_val_batches = np.stack(X_val_batches, axis=0)
-        X_train_batches = X_train_batches.reshape(-1, self.train_batch_size, self.timestamp, 10)       
+        X_train_batches = X_train_batches.reshape(-1, self.train_batch_size, self.timestamp, 10)
         y_val_batches = np.split(y_val, n_val_batches // self.train_batch_size, axis=0)
         y_val_batches = np.stack(y_val_batches, axis=0)
         y_val_batches = np.repeat(y_val_batches, self.full_timestamp // self.timestamp, axis=0)
@@ -318,7 +323,7 @@ class Classifier:
 
         train_batches = (X_train_batches, y_train_batches)
         val_batches = (X_val_batches, y_val_batches)
-    
+
         return train_batches, val_batches
 
     def precision_at_recall(self, y_true_proba, y_proba, rec = 0.2):
